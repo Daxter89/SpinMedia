@@ -16,9 +16,6 @@ class NewsController extends Controller
         $contents = simplexml_load_file($source);
         $contents->registerXPathNamespace('ht', 'https://trends.google.com/trends/trendingsearches/daily');
         $namespace = $contents->getNamespaces(true)['ht']; // Asumiendo que 'ht' es un prefijo de namespace definido
-
-        print_r($contents->getNamespaces(true));
-
          foreach ($contents->channel->item as $item) {
             $ht = $item->children($namespace);
             //return var_dump($ht);
