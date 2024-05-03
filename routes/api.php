@@ -9,4 +9,6 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::get('/import-news', NewsController::class );
+Route::get('/prompt', [App\Http\Controllers\ApiNewsController::class, 'getPrompt']);
+Route::post('/saveArticle', [App\Http\Controllers\ApiNewsController::class, 'saveArticle']);
 

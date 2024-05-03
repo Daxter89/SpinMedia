@@ -24,8 +24,8 @@ return new class extends Migration
             $table->string('item2_url')->nullable()->default(null);
             $table->string('item2_title')->nullable()->default(null);
             $table->string('item2_source')->nullable()->default(null);
-            $table->string('article_title')->nullable()->default(null);
-            $table->string('article_description')->nullable()->default(null);
+            $table->text('article_title')->nullable()->default(null);
+            $table->text('article_description')->nullable()->default(null);
             $table->boolean('is_published')->default(false);
             $table->timestamps();
         });
