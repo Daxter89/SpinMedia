@@ -18,7 +18,8 @@ class ApiNewsController extends Controller
     public function getPrompt(){
         $article = Article::whereNull('article_title')->whereNotNull('item2_url')->orderBy('created_at','desc')->take(1)->first();
 
-
+        //$this->getImageFromUrl($article->item1_url);
+        //$this->getImageFromUrl($article->item2_url);
          // Verifica si el artículo fue encontrado
     if ($article) {
         // Construye el prompt
@@ -26,7 +27,8 @@ class ApiNewsController extends Controller
          $article->item1_url\n 
          $article->item2_url 
             \n Take a deep breath and work on this step by step
-            \nReply in JSON mode, {\"title\" : \"****\", \"content\": \"*****\"}.";
+            \nReply in JSON mode, {\"title\" : \"****\", \"content\": \"*****\"}.
+            \nEscape double quotes \" within the content of the title or content.";
         // Prepara el arreglo para la respuesta JSON
         $response = [
             'id' => $article->id,  // Asume que $article tiene un 'id'
@@ -47,10 +49,11 @@ class ApiNewsController extends Controller
         $article->article_title = $request->input('title');
         $article->article_description = $request->input('content');
         $article->save();
-        $this->publica($article);
+        $mediaId = $this->uploadImage($article->item1_url);
+        $this->publica($article,$mediaId);
         return $this->getJWT();
     }
-    public function publica($article){
+    public function publica($article, $mediaId = 335){
         $client = new Client();
 
         $base_uri = env("WP_BASE_URL").'/jwt-auth/v1/token';
@@ -79,7 +82,8 @@ class ApiNewsController extends Controller
                 'json' => [
                     'title' => $article->article_title,
                     'content' => $article->article_description,
-                    'status' => 'publish'
+                    'status' => 'publish',
+                    'featured_media' => $mediaId  // Asegúrate de que $mediaId es el ID del medio que quieres como imagen destacada
                 ]
             ]);
             if ($response->getStatusCode() == 201) {
@@ -117,7 +121,94 @@ class ApiNewsController extends Controller
             'user_id' => 2,  // ID del usuario de WordPress
         ];
         $token = JWT::encode($payload, $key, 'HS256');  // Codifica y retorna el token
-        print_r($token);
+        //print_r($token);
         return $token;  // Codifica y retorna el token
+    }
+
+    public function getImageFromUrl($url){
+        $client = new Client();
+        $response = $client->request('GET', $url);
+        $html = $response->getBody();
+        $doc = new \DOMDocument();
+        libxml_use_internal_errors(true); // Desactiva errores/libxml errors (por ejemplo, HTML mal formado)
+        $doc->loadHTML($html);
+        libxml_clear_errors();
+        
+        $xpath = new \DOMXPath($doc);
+        $metaTags = $xpath->query("//meta[@property='og:image']");
+        $imageUrl = '';
+        if ($metaTags->length > 0) {
+            $imageUrl = $metaTags->item(0)->getAttribute('content');
+            //echo "La URL de la imagen es: " . $imageUrl;
+        } else {
+            echo "No se encontró la etiqueta meta og:image.";
+        }
+        return $imageUrl;
+    }
+
+    public function uploadImage($url = 'https://www.sensacine.com/noticias/cine/noticia-1000073876/'){
+        
+        $base_uri = env("WP_BASE_URL").'/jwt-auth/v1/token';
+        $client = new Client();
+        $response = $client->request('POST', $base_uri, [
+            'headers' => [
+            ],
+            'json' => [
+                'username' => env('WP_USER'),
+                'password' => env('WP_PASS'),
+            ]
+        ]);
+        if ($response->getStatusCode() == 200) {
+            $response = json_decode($response->getBody());
+            $token = $response->token;
+        }
+
+        $imageUrl = $this->getImageFromUrl($url);
+
+        $contents = file_get_contents($imageUrl);
+
+    // Extraemos el nombre del archivo desde la URL, eliminando cualquier parámetro de consulta
+    $pathInfo = pathinfo(parse_url($imageUrl, PHP_URL_PATH));
+    $filename = $pathInfo['basename'];  // Obtiene solo el nombre del archivo, sin parámetros de consulta
+
+    // Sanitiza el nombre del archivo para eliminar caracteres no deseados
+    $sanitizedFilename = preg_replace('/[^a-zA-Z0-9\._-]/', '', $filename);
+
+    // Guarda el contenido en un archivo local
+    if (file_put_contents($sanitizedFilename, $contents) === false) {
+        return response()->json(['error' => 'Failed to save the file.'], 500);
+    }
+    try {
+        $client = new Client();
+        $base_uri = env("WP_BASE_URL").'/wp/v2/media';
+        $response = $client->request('POST', $base_uri, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token, // Asume que tienes un token JWT válido
+
+            ],
+            'multipart' => [
+                [
+                    'name'     => 'file',
+                    'contents' => fopen($sanitizedFilename, 'r'),
+                    'filename' => $sanitizedFilename,
+                ],
+            ],
+            'http_errors' => false
+        ]);
+        $body = json_decode($response->getBody(), true);
+        $imageId = $body['id'];
+        return $imageId;
+        if ($response->getStatusCode() == 201 || $response->getStatusCode() == 200){
+            return "Archivo subido con éxito. ID del medio: " . var_dump($response);
+        } else {
+            echo "Error al subir archivo. Estado HTTP: " . $response->getStatusCode() . "\n" . $response->getBody();
+        }
+    } catch (RequestException $e) {
+        echo "Error al realizar la solicitud: " . $e->getMessage();
+    }
+    // Devuelve el nombre del archivo para confirmar la operación
+    return response()->json(['filename' => $sanitizedFilename]);
+
+       
     }
 }
