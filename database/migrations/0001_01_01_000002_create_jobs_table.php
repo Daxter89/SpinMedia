@@ -9,49 +9,47 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
-        Schema::create('jobs', function (Blueprint $table) {
-            $table->id();
-            $table->string('queue')->index();
-            $table->longText('payload');
-            $table->unsignedTinyInteger('attempts');
-            $table->unsignedInteger('reserved_at')->nullable();
-            $table->unsignedInteger('available_at');
-            $table->unsignedInteger('created_at');
-        });
+    Schema::create('trabajos', function (Blueprint $tabla) {
+        $tabla->id();
+        $tabla->string('cola')->index();
+        $tabla->longText('carga');
+        $tabla->unsignedTinyInteger('intentos');
+        $tabla->unsignedInteger('reservado_en')->nullable();
+        $tabla->unsignedInteger('disponible_en');
+        $tabla->unsignedInteger('creado_en');
+    });
 
-        Schema::create('job_batches', function (Blueprint $table) {
-            $table->string('id')->primary();
-            $table->string('name');
-            $table->integer('total_jobs');
-            $table->integer('pending_jobs');
-            $table->integer('failed_jobs');
-            $table->longText('failed_job_ids');
-            $table->mediumText('options')->nullable();
-            $table->integer('cancelled_at')->nullable();
-            $table->integer('created_at');
-            $table->integer('finished_at')->nullable();
-        });
+    Schema::create('lotes_de_trabajos', function (Blueprint $tabla) {
+        $tabla->string('id')->primary();
+        $tabla->string('nombre');
+        $tabla->integer('total_trabajos');
+        $tabla->integer('trabajos_pendientes');
+        $tabla->integer('trabajos_fallidos');
+        $tabla->longText('ids_trabajos_fallidos');
+        $tabla->mediumText('opciones')->nullable();
+        $tabla->integer('cancelado_en')->nullable();
+        $tabla->integer('creado_en');
+        $tabla->integer('finalizado_en')->nullable();
+    });
 
-        Schema::create('failed_jobs', function (Blueprint $table) {
-            $table->id();
-            $table->string('uuid')->unique();
-            $table->text('connection');
-            $table->text('queue');
-            $table->longText('payload');
-            $table->longText('exception');
-            $table->timestamp('failed_at')->useCurrent();
-        });
-    }
+    Schema::create('trabajos_fallidos', function (Blueprint $tabla) {
+        $tabla->id();
+        $tabla->string('uuid')->unique();
+        $tabla->text('conexion');
+        $tabla->text('cola');
+        $tabla->longText('carga');
+        $tabla->longText('excepcion');
+        $tabla->timestamp('fallido_en')->useCurrent();
+    });
+
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::dropIfExists('jobs');
-        Schema::dropIfExists('job_batches');
-        Schema::dropIfExists('failed_jobs');
+        Schema::dropIfExists('trabajos');
+        Schema::dropIfExists('lotes_de_trabajos');
+        Schema::dropIfExists('trabajos_fallidos');
     }
 };
